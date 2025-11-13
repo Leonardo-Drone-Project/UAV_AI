@@ -1,1 +1,7 @@
 # Add dependencies here
+torch
+numpy
+matplotlib
+opencv-python
+scikit-learn
+pyyaml
