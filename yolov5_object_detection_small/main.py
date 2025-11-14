@@ -1,32 +1,43 @@
-import cv2
 import torch
-from utils import load_model, detect_and_draw
+import cv2
+from ultralytics import YOLO
 
-# Initialize webcam (replace 0 with your drone feed if needed)
+# ✅ Load YOLOv5s model
+model = YOLO("yolov5s.pt")  # Automatically downloads if not found
+
+# ✅ Check for CUDA (GPU)
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"Using device: {device}")
+model.to(device)
+
+# ✅ Open video stream (0 = default webcam, replace with drone stream if needed)
 cap = cv2.VideoCapture(0)
 
-# Load YOLOv5 small model
-model = load_model()
+if not cap.isOpened():
+    print("❌ Failed to open video stream")
+    exit()
 
-# Target class
-TARGET_CLASS = 'person'
-
-print("[INFO] Starting detection loop...")
-while cap.isOpened():
+while True:
     ret, frame = cap.read()
     if not ret:
-        print("[WARN] Camera not returning frame. Exiting.")
+        print("❌ Failed to read frame")
         break
 
-    # Run detection and draw results
-    result_frame = detect_and_draw(model, frame, target=TARGET_CLASS)
+    # ✅ Run detection
+    results = model(frame)
 
-    # Display the results
-    cv2.imshow('UAV Object Detection Feed', result_frame)
+    # ✅ Annotate detections
+    annotated_frame = results[0].plot()
 
-    # Press 'q' to quit
+    # ✅ Show results
+    cv2.imshow("YOLOv5 Detection", annotated_frame)
+
+    # ⏹ Press 'q' to quit
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
 cv2.destroyAllWindows()
+
+
+
