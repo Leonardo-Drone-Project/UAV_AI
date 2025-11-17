@@ -5,7 +5,6 @@ from ultralytics import YOLO
 # Load YOLOv5s model
 model = YOLO("yolov5s.pt")  # Automatically downloads if not found
 
-# Check for CUDA (GPU)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Using device: {device}")
 model.to(device)
@@ -14,13 +13,13 @@ model.to(device)
 cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
-    print("❌ Failed to open video stream")
+    print("failed to video stream")
     exit()
 
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("❌ Failed to read frame")
+        print("Failed to read frame")
         break
 
     #  Run detection
