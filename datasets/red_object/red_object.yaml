@@ -1,0 +1,7 @@
+path: C:/Users/Stewy/UAV_AI/datasets/red_object
+train: images/train
+val: images/val
+
+names:
+  0: red_box
+  1: red_hat
