@@ -7,6 +7,4 @@ venv*/
 .vscode/
 .DS_Store
 *.pt
-datasets/red_object/
-datasets/*.jpg
-datasets/*.txt
+datasets/
