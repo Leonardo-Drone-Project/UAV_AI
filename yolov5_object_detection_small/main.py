@@ -11,20 +11,20 @@ def train_red_object():
     Train YOLO on the red_box / red_hat dataset exported from Roboflow.
     Run with: python main.py --mode train
     """
-    # Base YOLOv5 model (your pretrained weights in UAV_AI root)
+    # Load base YOLO model (your yolov5su.pt in UAV_AI root)
     model = YOLO("../yolov5su.pt")
 
     # Train on your dataset
     model.train(
-        data="../datasets/red_object/data.yaml",  # Roboflow YAML
+        data="../datasets/red_object/data.yaml",  # path to your YAML
         imgsz=640,
         epochs=100,
-        batch=16,
-        project="runs",             # output folder (created automatically)
-        name="red_object_detect",   # experiment name inside runs/
-        # device=0,                 # uncomment to force GPU 0
+        batch=8,          # reduced from 16 to lower memory use
+        workers=0,        # IMPORTANT: no multiprocessing -> avoids spawn error
+        project="runs",   # output folder
+        name="red_object_detect2",
+        # device=0,       # uncomment to force GPU 0 explicitly
     )
-
 
 def test_resolutions(video_path: str):
     """
