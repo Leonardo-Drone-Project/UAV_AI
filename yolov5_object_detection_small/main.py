@@ -42,7 +42,7 @@ for (width, height) in resolutions:
         resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
 
         results = model.predict(resized, conf=conf, verbose=False)
-        r = results[0]
+        r = results[0] 
 
         # Count detections by class id
         if r.boxes is not None and len(r.boxes) > 0:
