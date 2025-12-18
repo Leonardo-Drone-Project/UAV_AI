@@ -8,3 +8,7 @@ venv*/
 .DS_Store
 *.pt
 datasets/
+yolov5_object_detection_small/runs/
+runs/
+
+
