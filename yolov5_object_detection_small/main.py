@@ -23,7 +23,7 @@ def train_red_object():
         workers=0,        # IMPORTANT: no multiprocessing -> avoids spawn error
         project="runs",   # output folder
         name="red_object_detect2",
-        # device=0,       # uncomment to force GPU 0 explicitly
+        # device=0,       # uncomment to force GPU 0 
     )
 
 def test_resolutions(video_path: str):
@@ -32,7 +32,7 @@ def test_resolutions(video_path: str):
     Run with: python main.py --mode test --video path/to/video.mp4
     """
     # Load trained model (path relative to this main.py file)
-    model = YOLO("runs/red_object_detect/weights/best.pt")
+    model = YOLO("runs/red_object_detect2/weights/best.pt")
 
     resolutions = [
         (1280, 720),
@@ -102,7 +102,6 @@ if __name__ == "__main__":
         "--mode",
         choices=["train", "test"],
         default="test",
-        help="train = train model, test = run multi-resolution video test",
     )
     parser.add_argument(
         "--video",

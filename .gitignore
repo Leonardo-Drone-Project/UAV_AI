@@ -10,5 +10,9 @@ venv*/
 datasets/
 yolov5_object_detection_small/runs/
 runs/
+videos/
+*.mp4
+*.mov
+
 
 
