@@ -29,12 +29,13 @@ def test_resolutions(video_path: str):
     """
     Test trained model on the same video at multiple resolutions and
     create summary plots.
-    Run with: python main.py --mode test [--video path/to/video]
+    Run with: python main.py --mode test
     """
     model = YOLO("runs/red_object_detect2/weights/best.pt")
 
     resolutions = [
-        (1920, 1080),   # Full HD
+        (3840, 2160), # 4K resolution
+        (1920, 1080), # Full HD
         (1280, 720),
         (854, 480),
     ]
@@ -145,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video",
         type=str,
-        default="C:/Users/Stewy/UAV_AI/videos/red_object_test1.mov",
+        default="C:/Users/Stewy/UAV_AI/videos/red_object_test2.mov",
         help="Path to input video for testing",
     )
     args = parser.parse_args()
