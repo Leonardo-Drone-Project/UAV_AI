@@ -8,9 +8,9 @@
 
 ## Reproducibility: Training and Testing Commands
 
-This section documents the exact commands and configuration used to train and evaluate the YOLO-based red target detection model so that the results can be fully reproduced.
+This section documents the exact commands used to train and evaluate the YOLO-based red target detection model so that the results can be fully reproduced.
 
-Activate the Python virtual environment before running any commands:
+Activate the Python virtual environment before running any commands...
 
 ```bash
 venv_gpu\Scripts\activate
