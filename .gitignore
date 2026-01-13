@@ -7,4 +7,16 @@ venv*/
 .vscode/
 .DS_Store
 *.pt
+# Ignore datasets
+datasets/**
+videos/**
+*.jpg
+*.png
+*.mp4
+*.mov
+# YOLO generated files
+results.csv
+args.yaml
+runs/**
+
 
