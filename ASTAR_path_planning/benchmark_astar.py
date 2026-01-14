@@ -1,4 +1,3 @@
-# benchmark_astar.py
 import random
 import time
 from statistics import mean
@@ -59,3 +58,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
