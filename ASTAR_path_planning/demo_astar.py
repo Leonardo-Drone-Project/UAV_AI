@@ -1,4 +1,3 @@
-# demo_astar.py
 import time
 from astar import astar, simplify_path
 
