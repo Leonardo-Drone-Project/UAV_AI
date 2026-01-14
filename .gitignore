@@ -7,6 +7,7 @@ venv*/
 .vscode/
 .DS_Store
 *.pt
+
 # Ignore datasets
 datasets/**
 videos/**
@@ -14,9 +15,15 @@ videos/**
 *.png
 *.mp4
 *.mov
+
 # YOLO generated files
 results.csv
 args.yaml
 runs/**
+
+# Behaviour Tree logs
+bt_log.csv
+*.log
+
 
 

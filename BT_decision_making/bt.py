@@ -22,8 +22,8 @@ def tick_bt(
     inp: Inputs,
     *,
     conf_threshold: float = 0.7,
-    debounce_s: float = 0.3,
-    lost_to_search_s: float = 2.0,
+    debounce_s: float = 0.6,
+    lost_to_search_s: float = 3.0,
     failsafe_s: float = 12.0,
 ) -> Tuple[ActionOutputs, str]:
     """
