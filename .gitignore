@@ -28,6 +28,8 @@ bt_log.csv
 # External third-party repos
 external/**
 
+.venv_joe/
+
 
 
 
