@@ -7,12 +7,29 @@ venv*/
 .vscode/
 .DS_Store
 *.pt
-datasets/
-yolov5_object_detection_small/runs/
-runs/
-videos/
+
+# Ignore datasets
+datasets/**
+videos/**
+*.jpg
+*.png
 *.mp4
 *.mov
+
+# YOLO generated files
+results.csv
+args.yaml
+runs/**
+
+# Behaviour Tree logs
+bt_log.csv
+*.log
+
+# External third-party repos
+external/**
+
+
+
 
 
 
