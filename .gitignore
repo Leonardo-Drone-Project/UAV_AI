@@ -30,6 +30,10 @@ external/**
 
 .venv_joe/
 
+# Perception outputs
+perception/outputs/
+perception/**/*.json
+
 
 
 
