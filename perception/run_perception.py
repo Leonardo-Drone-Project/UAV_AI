@@ -62,6 +62,8 @@ def main(args):
             "y2",
             "dx_px",
             "dy_px",
+            "dx_norm",
+            "dy_norm",
             "img_w",
             "img_h",
         ]
@@ -90,7 +92,6 @@ def main(args):
             dt = now - last_t
             last_t = now
 
-            # FPS clamp to avoid huge first values
             if dt < 0.001:
                 dt = 0.001
 
@@ -106,7 +107,7 @@ def main(args):
                 last_good_t = now
             else:
                 if last_good is not None and (now - last_good_t) < hold_s:
-                    result = dict(last_good)  # copy
+                    result = dict(last_good)
                     held = 1
 
             payload = {
@@ -121,11 +122,13 @@ def main(args):
             if result["detected"]:
                 x1, y1, x2, y2 = result["bbox"]
                 dx, dy = result["offset_px"]
+                dxn, dyn = result.get("offset_norm", (0.0, 0.0))
                 cls = result["class"] or ""
                 conf = float(result["confidence"])
             else:
                 x1 = y1 = x2 = y2 = 0
                 dx = dy = 0
+                dxn = dyn = 0.0
                 cls = ""
                 conf = 0.0
 
@@ -144,6 +147,8 @@ def main(args):
                     y2,
                     dx,
                     dy,
+                    float(dxn),
+                    float(dyn),
                     img_w,
                     img_h,
                 ]
@@ -153,7 +158,10 @@ def main(args):
                 csv_f.flush()
 
             if frame_i % args.print_every == 0:
-                print(f"[INFO] fps={fps_ema:.1f} detected={int(bool(result['detected']))} held={held} class={cls} conf={conf:.2f}")
+                print(
+                    f"[INFO] fps={fps_ema:.1f} detected={int(bool(result['detected']))} held={held} "
+                    f"class={cls} conf={conf:.2f} dxn={float(dxn):.2f} dyn={float(dyn):.2f}"
+                )
 
             # Optional view, needs a display
             if args.view:
@@ -227,7 +235,7 @@ if __name__ == "__main__":
     p.add_argument("--print-every", type=int, default=60)
     p.add_argument("--flush-every", type=int, default=60)
 
-    p.add_argument("--hold-s", type=float, default=0.2)
+    p.add_argument("--hold-s", type=float, default=0.5)
 
     p.add_argument("--view", action="store_true")
 

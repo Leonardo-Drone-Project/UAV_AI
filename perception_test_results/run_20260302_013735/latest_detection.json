@@ -1,0 +1,25 @@
+{
+  "timestamp": 1772415655.0412812,
+  "fps_ema": 9.992352663443583,
+  "held": 0,
+  "result": {
+    "detected": false,
+    "class": null,
+    "confidence": 0.0,
+    "bbox": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "offset_px": [
+      0,
+      0
+    ],
+    "timestamp": 1772415655.0412812,
+    "image_size": [
+      1920,
+      1080
+    ]
+  }
+}

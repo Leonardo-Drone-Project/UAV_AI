@@ -261,13 +261,25 @@ def detect(
         save_json=save_json,
     )
 
+    img_w, img_h = best.image_size
+    dx_px, dy_px = best.target_offset_px
+
+    dx_norm = 0.0
+    dy_norm = 0.0
+    if img_w > 0 and img_h > 0:
+        dx_norm = float(dx_px) / (float(img_w) / 2.0)
+        dy_norm = float(dy_px) / (float(img_h) / 2.0)
+        dx_norm = max(-1.0, min(1.0, dx_norm))
+        dy_norm = max(-1.0, min(1.0, dy_norm))
+
     return {
         "detected": bool(best.target_detected),
         "class": best.class_name if best.target_detected else None,
         "confidence": float(best.target_conf),
         "bbox": tuple(best.bbox_xyxy),
-        "offset_px": tuple(best.target_offset_px),
+        "offset_px": (int(dx_px), int(dy_px)),
+        "offset_norm": (dx_norm, dy_norm),
         "timestamp": float(best.timestamp),
-        "image_size": tuple(best.image_size),
+        "image_size": (int(img_w), int(img_h)),
     }
 
