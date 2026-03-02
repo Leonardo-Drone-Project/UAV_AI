@@ -53,6 +53,7 @@ def main(args):
             "timestamp",
             "fps_ema",
             "detected",
+            "held",
             "class",
             "confidence",
             "x1",
@@ -75,6 +76,11 @@ def main(args):
     alpha = 0.1
     frame_i = 0
 
+    # Hold timer state
+    hold_s = float(args.hold_s)
+    last_good = None
+    last_good_t = 0.0
+
     try:
         while True:
             frame, timestamp = camera.get_frame()
@@ -83,14 +89,30 @@ def main(args):
             now = time.time()
             dt = now - last_t
             last_t = now
-            inst_fps = (1.0 / dt) if dt > 0 else 0.0
+
+            # FPS clamp to avoid huge first values
+            if dt < 0.001:
+                dt = 0.001
+
+            inst_fps = 1.0 / dt
             fps_ema = inst_fps if fps_ema <= 0 else (1 - alpha) * fps_ema + alpha * inst_fps
 
             result = detect(frame, timestamp=timestamp)
 
+            # Apply hold logic
+            held = 0
+            if result["detected"]:
+                last_good = result
+                last_good_t = now
+            else:
+                if last_good is not None and (now - last_good_t) < hold_s:
+                    result = dict(last_good)  # copy
+                    held = 1
+
             payload = {
                 "timestamp": timestamp,
                 "fps_ema": fps_ema,
+                "held": held,
                 "result": result,
             }
             latest_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -99,8 +121,8 @@ def main(args):
             if result["detected"]:
                 x1, y1, x2, y2 = result["bbox"]
                 dx, dy = result["offset_px"]
-                cls = result["class"]
-                conf = result["confidence"]
+                cls = result["class"] or ""
+                conf = float(result["confidence"])
             else:
                 x1 = y1 = x2 = y2 = 0
                 dx = dy = 0
@@ -108,22 +130,42 @@ def main(args):
                 conf = 0.0
 
             img_w, img_h = result["image_size"]
-            csv_w.writerow([timestamp, fps_ema, int(result["detected"]), cls, conf, x1, y1, x2, y2, dx, dy, img_w, img_h])
+            csv_w.writerow(
+                [
+                    timestamp,
+                    fps_ema,
+                    int(bool(result["detected"])),
+                    held,
+                    cls,
+                    conf,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    dx,
+                    dy,
+                    img_w,
+                    img_h,
+                ]
+            )
 
             if frame_i % args.flush_every == 0:
                 csv_f.flush()
 
             if frame_i % args.print_every == 0:
-                print(f"[INFO] fps={fps_ema:.1f} detected={int(result['detected'])} class={cls} conf={conf:.2f}")
+                print(f"[INFO] fps={fps_ema:.1f} detected={int(bool(result['detected']))} held={held} class={cls} conf={conf:.2f}")
 
             # Optional view, needs a display
             if args.view:
                 vis = frame.copy()
                 if result["detected"]:
                     cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    label = f"{cls} {conf:.2f}"
+                    if held:
+                        label += " HELD"
                     cv2.putText(
                         vis,
-                        f"{cls} {conf:.2f}",
+                        label,
                         (x1, max(20, y1 - 8)),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.6,
@@ -184,6 +226,8 @@ if __name__ == "__main__":
     p.add_argument("--out-dir", default="perception/outputs")
     p.add_argument("--print-every", type=int, default=60)
     p.add_argument("--flush-every", type=int, default=60)
+
+    p.add_argument("--hold-s", type=float, default=0.2)
 
     p.add_argument("--view", action="store_true")
 
