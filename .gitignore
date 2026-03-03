@@ -30,14 +30,11 @@ external/**
 
 .venv_joe/
 
-# Perception outputs
-perception/outputs/
-perception/**/*.json
-
-perception_test_results/
+# Perception outputs and test logs
+perception/outputs/**
+perception_test_results/**
 **/detections.csv
 **/latest_detection.json
-
 
 <<<<<<< HEAD
 =======
