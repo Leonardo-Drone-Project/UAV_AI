@@ -4,4 +4,6 @@ numpy
 matplotlib
 opencv-python
 scikit-learn
+ultralytics
 pyyaml
+

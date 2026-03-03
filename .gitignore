@@ -34,4 +34,15 @@ external/**
 perception/outputs/
 perception/**/*.json
 
+perception_test_results/
+**/detections.csv
+**/latest_detection.json
 
+
+<<<<<<< HEAD
+=======
+
+
+
+
+>>>>>>> yolov5-small-dev
