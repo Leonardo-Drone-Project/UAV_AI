@@ -1,59 +1,102 @@
-"""
-Stub inputs for Behaviour Tree testing so no YOLO needed rn
-
-We provide deterministic scenarios so you can demonstrate BT behaviour:
-- scenario 1: appear -> track -> lost -> search -> appear -> track
-- scenario 2: flicker -> debounce should prevent spam state switching
-- scenario 3: long lost -> FAILSAFE
-"""
 from dataclasses import dataclass
 from typing import Tuple
 
 
 @dataclass
 class Inputs:
-    target_detected: bool
-    target_conf: float
-    target_offset_px: Tuple[float, float]  # (dx, dy) in pixels
+    # Perception
+    target_detected: bool = False
+    target_conf: float = 0.0
+    target_class: str = ""
+    target_offset_px: Tuple[float, float] = (0.0, 0.0)
+    target_offset_norm: Tuple[float, float] = (0.0, 0.0)
 
+    # Optional logging / role placeholder
+    role: str = "unknown"
 
-def _interp_offset(t: float) -> Tuple[float, float]:
-    # Simple “moving target” drift
-    dx = 120.0 - 30.0 * (t % 4.0)
-    dy = 30.0 * ((t * 0.5) % 2.0 - 0.5)
-    return (dx, dy)
+    # Mission upload and mission data
+    mission_upload_received: bool = False
+    mission_data_complete: bool = False
 
+    # Download / missing data handling
+    download_timeout: bool = False
+    missing_data_required: bool = False
+    missing_data_received: bool = False
+    request_missing_data_timeout: bool = False
 
-def get_inputs(now_s: float, scenario: int = 1) -> Inputs:
-    t = now_s  # absolute time works fine; logic below uses modulo windows
+    # Store mission data
+    mission_store_ok: bool = True
 
-    if scenario == 1:
-        # 0–2s: no target
-        # 2–8s: target visible (good confidence)
-        # 8–12s: lost
-        # 12–18s: visible again
-        phase = t % 18.0
-        if 2.0 <= phase < 8.0 or 12.0 <= phase < 18.0:
-            return Inputs(True, 0.85, _interp_offset(phase))
-        return Inputs(False, 0.0, (0.0, 0.0))
+    # Pre-flight checks
+    battery_ok: bool = True
+    fc_ok: bool = True
+    nav_ok: bool = True
+    comms_ok: bool = True
+    payload_ok: bool = True
+    obc_ok: bool = True
+    mission_valid: bool = True
 
-    if scenario == 2:
-        # Flicker: alternating detected / not detected every 0.2s for 6s,
-        # then stable detection.
-        phase = t % 10.0
-        if phase < 6.0:
-            flicker = int((phase / 0.2)) % 2 == 0
-            conf = 0.75 if flicker else 0.0
-            return Inputs(flicker, conf, _interp_offset(phase) if flicker else (0.0, 0.0))
-        else:
-            return Inputs(True, 0.85, _interp_offset(phase))
+    # Swarm coordination
+    swarm_coordinated: bool = False
 
-    if scenario == 3:
-        # Target appears briefly, then disappears long enough to trigger FAILSAFE.
-        phase = t % 20.0
-        if 1.0 <= phase < 3.0:
-            return Inputs(True, 0.9, _interp_offset(phase))
-        return Inputs(False, 0.0, (0.0, 0.0))
+    # Role election
+    roles_assigned: bool = False
+    priority_list_sent: bool = False
+    role_election_failed: bool = False
 
-    # default
-    return Inputs(False, 0.0, (0.0, 0.0))
+    # Launch and arm
+    launch_command_received: bool = False
+    abort_received: bool = False
+    arm_permission_received: bool = False
+    arm_denied: bool = False
+    arm_timeout: bool = False
+
+    # Takeoff altitude target
+    takeoff_altitude_target_set: bool = True
+
+    # Flight progress
+    altitude_reached: bool = False
+    hover_stable: bool = False
+    arrived_search_area: bool = False
+
+    # Target verification and reporting
+    target_confirmed: bool = False
+    target_rejected: bool = False
+    report_sent: bool = False
+    report_failed: bool = False
+
+    # Converge and tracking
+    converge_complete: bool = False
+    direct_control_enabled: bool = False
+    direct_control_released: bool = False
+
+    # Parent loss
+    parent_lost: bool = False
+    parent_reassigned: bool = False
+
+    # Comms
+    comms_lost: bool = False
+    comms_restored: bool = False
+    comms_timeout: bool = False
+
+    # Recall / mission end
+    recall_received: bool = False
+    mission_complete: bool = False
+
+    # Search timeouts
+    search_timeout: bool = False
+    search_last_known_timeout: bool = False
+
+    # Return and landing
+    at_base: bool = False
+    landed: bool = False
+
+    # Safety
+    low_battery: bool = False
+    low_battery_critical: bool = False
+    fault: bool = False
+    damage: bool = False
+
+    # Failsafe latch
+    failsafe_requested: bool = False
+    manual_reset: bool = False

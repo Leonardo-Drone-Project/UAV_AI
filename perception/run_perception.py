@@ -1,6 +1,7 @@
 import argparse
 import csv
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,8 +19,14 @@ def make_run_dir(base: Path) -> Path:
     return run_dir
 
 
+def atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(str(tmp), str(path))
+
+
 def main(args):
-    # Camera selection
     if args.camera == "video":
         camera = VideoFileCamera(args.source)
     elif args.camera == "webcam":
@@ -29,13 +36,14 @@ def main(args):
     else:
         raise RuntimeError(f"Unknown camera mode: {args.camera}")
 
-    # Outputs
     base_out = Path(args.out_dir).expanduser().resolve()
+    base_out.mkdir(parents=True, exist_ok=True)
+
     run_dir = make_run_dir(base_out)
-    latest_json = run_dir / "latest_detection.json"
+    run_json = run_dir / "latest_detection.json"
+    stable_json = base_out / "latest_detection.json"
     csv_path = run_dir / "detections.csv"
 
-    # Detector init
     init_detector(
         weights_path=args.weights,
         device=args.device,
@@ -45,7 +53,6 @@ def main(args):
         min_box_px=args.min_box_px,
     )
 
-    # CSV log
     csv_f = open(csv_path, "w", newline="", encoding="utf-8")
     csv_w = csv.writer(csv_f)
     csv_w.writerow(
@@ -72,13 +79,13 @@ def main(args):
 
     print("[INFO] Perception loop started")
     print(f"[INFO] Run folder: {run_dir}")
+    print(f"[INFO] Stable JSON: {stable_json}")
 
     last_t = time.time()
     fps_ema = 0.0
     alpha = 0.1
     frame_i = 0
 
-    # Hold timer state
     hold_s = float(args.hold_s)
     last_good = None
     last_good_t = 0.0
@@ -91,7 +98,6 @@ def main(args):
             now = time.time()
             dt = now - last_t
             last_t = now
-
             if dt < 0.001:
                 dt = 0.001
 
@@ -100,14 +106,14 @@ def main(args):
 
             result = detect(frame, timestamp=timestamp)
 
-            # Apply hold logic
             held = 0
             if result["detected"]:
-                last_good = result
+                last_good = dict(result)
                 last_good_t = now
             else:
                 if last_good is not None and (now - last_good_t) < hold_s:
                     result = dict(last_good)
+                    result["timestamp"] = timestamp
                     held = 1
 
             payload = {
@@ -116,23 +122,26 @@ def main(args):
                 "held": held,
                 "result": result,
             }
-            latest_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-            # CSV row
+            payload_text = json.dumps(payload, indent=2)
+            atomic_write_text(run_json, payload_text)
+            atomic_write_text(stable_json, payload_text)
+
             if result["detected"]:
                 x1, y1, x2, y2 = result["bbox"]
-                dx, dy = result["offset_px"]
-                dxn, dyn = result.get("offset_norm", (0.0, 0.0))
+                dx_px, dy_px = result["offset_px"]
+                dx_norm, dy_norm = result.get("offset_norm", (0.0, 0.0))
                 cls = result["class"] or ""
                 conf = float(result["confidence"])
             else:
                 x1 = y1 = x2 = y2 = 0
-                dx = dy = 0
-                dxn = dyn = 0.0
+                dx_px = dy_px = 0
+                dx_norm = dy_norm = 0.0
                 cls = ""
                 conf = 0.0
 
             img_w, img_h = result["image_size"]
+
             csv_w.writerow(
                 [
                     timestamp,
@@ -145,10 +154,10 @@ def main(args):
                     y1,
                     x2,
                     y2,
-                    dx,
-                    dy,
-                    float(dxn),
-                    float(dyn),
+                    dx_px,
+                    dy_px,
+                    dx_norm,
+                    dy_norm,
                     img_w,
                     img_h,
                 ]
@@ -159,11 +168,15 @@ def main(args):
 
             if frame_i % args.print_every == 0:
                 print(
-                    f"[INFO] fps={fps_ema:.1f} detected={int(bool(result['detected']))} held={held} "
-                    f"class={cls} conf={conf:.2f} dxn={float(dxn):.2f} dyn={float(dyn):.2f}"
+                    f"[INFO] fps={fps_ema:.1f} "
+                    f"detected={int(bool(result['detected']))} "
+                    f"held={held} "
+                    f"class={cls} "
+                    f"conf={conf:.2f} "
+                    f"dxn={dx_norm:.2f} "
+                    f"dyn={dy_norm:.2f}"
                 )
 
-            # Optional view, needs a display
             if args.view:
                 vis = frame.copy()
                 if result["detected"]:
@@ -208,14 +221,14 @@ def main(args):
         csv_f.flush()
         csv_f.close()
         print(f"[INFO] Saved: {csv_path}")
-        print(f"[INFO] Saved: {latest_json}")
+        print(f"[INFO] Saved: {run_json}")
+        print(f"[INFO] Saved: {stable_json}")
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
 
     p.add_argument("--camera", choices=["video", "webcam", "realsense"], required=True)
-
     p.add_argument("--source", default="", help="Video path for --camera video")
     p.add_argument("--index", type=int, default=0, help="Webcam index for --camera webcam")
 
@@ -234,9 +247,7 @@ if __name__ == "__main__":
     p.add_argument("--out-dir", default="perception/outputs")
     p.add_argument("--print-every", type=int, default=60)
     p.add_argument("--flush-every", type=int, default=60)
-
     p.add_argument("--hold-s", type=float, default=0.5)
-
     p.add_argument("--view", action="store_true")
 
     main(p.parse_args())
