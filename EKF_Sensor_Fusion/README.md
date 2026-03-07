@@ -138,19 +138,6 @@ If the model starts drifting away from the measurements, the EKF pulls the estim
 
 This is why EKF is widely used for navigation and robotics.
 
-## Main inputs
-
-The final sensor set will be confirmed during integration, but the EKF is expected to use a core set of navigation sensors such as:
-- IMU
-- GPS
-- magnetometer
-- barometer
-
-If needed later, more sources may be added, such as:
-- optical flow
-- vision odometry
-- depth-based localisation inputs
-
 ## Main outputs
 
 The EKF is expected to provide fused navigation outputs for the rest of the system.
@@ -193,19 +180,6 @@ This branch is intended to cover:
 - testing and validation of fused estimates
 
 It should provide a clean interface for the rest of the project to read the estimated drone state.
-
-## Expected development stages
-
-Planned stages for this module are:
-1. define the sensor inputs
-2. define the state vector
-3. define the system model
-4. define the measurement models
-5. implement EKF prediction step
-6. implement EKF update step
-7. output fused navigation state
-8. test with sample or logged sensor data
-9. connect EKF outputs into BT, A*, and other subsystems
 
 ## Summary
 
