@@ -1,6 +1,5 @@
 import math
 import random
-import time
 
 from .interface import EKFSensorFusionInterface, NavThresholds
 from .measurements import GPSMeasurement, IMUMeasurement, RealSenseMeasurement
@@ -104,6 +103,7 @@ def main() -> None:
         altitude_target_m=5.0,
         search_area_xy_m=(10.0, 0.0),
         base_xy_m=(0.0, 0.0),
+        timestamp_s=t,
     )
 
     print("\nFinal fused state")

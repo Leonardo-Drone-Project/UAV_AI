@@ -100,9 +100,10 @@ class EKFSensorFusionInterface:
         altitude_target_m: Optional[float] = None,
         search_area_xy_m: Optional[Tuple[float, float]] = None,
         base_xy_m: Optional[Tuple[float, float]] = None,
+        timestamp_s: Optional[float] = None,
     ) -> Dict[str, bool]:
         th = thresholds or NavThresholds()
-        state = self.get_fused_state()
+        state = self.get_fused_state(timestamp_s=timestamp_s)
 
         speed_mps = math.sqrt(
             state.vx_mps ** 2 + state.vy_mps ** 2 + state.vz_mps ** 2
