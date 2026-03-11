@@ -111,7 +111,7 @@ def run_bt(
 
                 dx_px, dy_px = inp.target_offset_px
                 dx_n, dy_n = inp.target_offset_norm
-                ldx, ldy = bb.last_target_offset_px
+                ldx, ldy = bb.target_last_offset_px
 
                 writer.writerow(
                     [
