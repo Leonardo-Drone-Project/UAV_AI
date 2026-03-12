@@ -32,6 +32,8 @@ class SwarmCoordinationInterface:
             "parent_lost": bool(decision.parent_lost),
             "parent_reassigned": bool(decision.parent_reassigned),
             "converge_complete": bool(decision.converge_complete),
+            "target_handover_required": bool(decision.target_handover_required),
+            "target_handover_complete": bool(decision.target_handover_complete),
         }
 
     @staticmethod

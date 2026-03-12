@@ -25,6 +25,9 @@ class DroneState:
     def position_xyz(self) -> Tuple[float, float, float]:
         return (self.x_m, self.y_m, self.z_m)
 
+    def position_xy(self) -> Tuple[float, float]:
+        return (self.x_m, self.y_m)
+
 
 @dataclass
 class SwarmDecision:
@@ -48,3 +51,11 @@ class SwarmDecision:
     converge_complete: bool = False
     target_known: bool = False
     target_xy_m: Optional[Tuple[float, float]] = None
+
+    target_owner_id: Optional[str] = None
+    target_tracking_drone_id: Optional[str] = None
+    target_handover_required: bool = False
+    target_handover_complete: bool = False
+
+
+

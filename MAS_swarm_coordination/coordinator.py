@@ -5,6 +5,7 @@ from .models import DroneState, SwarmDecision
 from .utils import (
     build_task_assignments,
     choose_parent_and_priority,
+    choose_target_owner,
     distance_xy_m,
     drone_is_fresh,
     drone_is_healthy_for_swarm,
@@ -19,6 +20,9 @@ class SwarmCoordinator:
 
         self.active_parent_id: Optional[str] = None
         self.last_parent_id: Optional[str] = None
+
+        self.active_target_owner_id: Optional[str] = None
+        self.last_target_owner_id: Optional[str] = None
 
     def update_drone(self, drone: DroneState) -> None:
         self._drones[drone.drone_id] = drone
@@ -52,6 +56,7 @@ class SwarmCoordinator:
         parent_lost = self._current_parent_is_lost(now_s)
 
         prev_parent_id = self.active_parent_id
+        prev_target_owner_id = self.active_target_owner_id
 
         parent_id, priority_list, roles = choose_parent_and_priority(
             drones=drones,
@@ -71,10 +76,28 @@ class SwarmCoordinator:
         target_xy = estimate_target_xy(drones)
         target_known = target_xy is not None
 
+        target_owner_id, target_handover_required, target_handover_complete = choose_target_owner(
+            drones_by_id=self._drones,
+            roles=roles,
+            target_xy=target_xy,
+            current_target_owner_id=prev_target_owner_id,
+            now_s=now_s,
+            config=self.config,
+        )
+
+        # First acquisition of a target owner is not treated as a handover
+        if prev_target_owner_id is None and target_owner_id is not None:
+            target_handover_required = False
+            target_handover_complete = False
+
+        self.last_target_owner_id = self.active_target_owner_id
+        self.active_target_owner_id = target_owner_id
+
         task_assignments = build_task_assignments(
             parent_id=parent_id,
             priority_list=priority_list,
             target_known=target_known,
+            target_owner_id=target_owner_id,
         )
 
         converge_complete = False
@@ -112,4 +135,8 @@ class SwarmCoordinator:
             converge_complete=converge_complete,
             target_known=target_known,
             target_xy_m=target_xy,
+            target_owner_id=target_owner_id,
+            target_tracking_drone_id=target_owner_id,
+            target_handover_required=target_handover_required,
+            target_handover_complete=target_handover_complete,
         )

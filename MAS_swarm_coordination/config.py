@@ -12,3 +12,6 @@ class SwarmConfig:
 
     parent_loss_timeout_s: float = 2.0
     converge_radius_m: float = 3.0
+
+    prefer_child_for_target_tracking: bool = True
+    target_handover_distance_margin_m: float = 0.75

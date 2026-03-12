@@ -37,6 +37,9 @@ def main() -> None:
                 "priority_list",
                 "assigned_roles",
                 "task_assignments",
+                "target_owner_id",
+                "target_handover_required",
+                "target_handover_complete",
                 "stale_drone_ids",
                 "swarm_coordinated",
                 "roles_assigned",
@@ -72,6 +75,9 @@ def main() -> None:
                     "|".join(decision.priority_list),
                     json.dumps(decision.assigned_roles),
                     json.dumps(decision.task_assignments),
+                    decision.target_owner_id,
+                    int(decision.target_handover_required),
+                    int(decision.target_handover_complete),
                     "|".join(decision.stale_drone_ids),
                     int(decision.swarm_coordinated),
                     int(decision.roles_assigned),
@@ -89,6 +95,8 @@ def main() -> None:
                 print(
                     f"[INFO] event={event_count} drone={drone.drone_id} "
                     f"parent={decision.parent_id} "
+                    f"target_owner={decision.target_owner_id} "
+                    f"handover={int(decision.target_handover_complete)} "
                     f"reassigned={int(decision.parent_reassigned)} "
                     f"converge={int(decision.converge_complete)} "
                     f"bt_flags={bt_flags}"
@@ -102,6 +110,7 @@ def main() -> None:
     print(f"[INFO] Final priority list: {final_decision.priority_list}")
     print(f"[INFO] Final roles: {final_decision.assigned_roles}")
     print(f"[INFO] Final tasks: {final_decision.task_assignments}")
+    print(f"[INFO] Final target owner: {final_decision.target_owner_id}")
     print(f"[INFO] Final BT flags: {final_bt_flags}")
 
 
