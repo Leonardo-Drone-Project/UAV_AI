@@ -6,13 +6,15 @@ This module handles the swarm coordination side of the project.
 
 The aim is to manage how multiple drones work together during the mission. It sits between the incoming drone state information and the Behaviour Tree mission logic.
 
-At this stage, the module already provides a working baseline for:
+At the current stage, the module already provides a working baseline for:
 - parent and child role election
 - priority list generation
 - parent loss detection
 - parent reassignment
+- target-aware task assignment
 - converge completion checks
 - BT input flag generation
+- replay-based swarm testing
 
 ## What this module does
 
@@ -23,9 +25,10 @@ The current coordination logic takes in the state of each drone in the swarm and
 - whether the swarm is healthy enough to operate
 - whether the parent has been lost
 - whether a new parent has been assigned
+- what task each drone should currently perform
 - whether the swarm has converged on the target area
 
-This gives the project a basic but working swarm coordination layer.
+This gives the project a usable swarm coordination layer that can already support the Behaviour Tree at a high level.
 
 ## Current decision logic
 
@@ -41,7 +44,7 @@ The highest scoring healthy drone becomes the parent.
 The remaining healthy drones become children.
 The child drones are then ordered into a priority list.
 
-This keeps the first version simple and readable while still matching the main swarm logic needed by the Behaviour Tree.
+The module also checks whether drones are stale using `last_update_s`, so role election and reassignment now depend on both health and update freshness.
 
 ## Current outputs
 
@@ -49,6 +52,8 @@ The current swarm decision output includes:
 - selected parent drone
 - child priority list
 - assigned roles
+- task assignments
+- stale drone IDs
 - `swarm_coordinated`
 - `roles_assigned`
 - `priority_list_sent`
@@ -90,18 +95,18 @@ Each drone state includes values such as:
 - target position
 - last update time
 
-This is the base data used for role election, reassignment, and converge checks.
+This is the base data used for role election, reassignment, task assignment, and converge checks.
 
 ## Current files
 
 `config.py`  
-Stores swarm coordination settings such as role election weights and converge radius.
+Stores swarm coordination settings such as role election weights, timeout values, and converge radius.
 
 `models.py`  
 Defines the drone state and swarm decision data structures.
 
 `utils.py`  
-Contains helper functions for scoring, target estimation, and distance checks.
+Contains helper functions for scoring, target estimation, freshness checks, task assignment, and distance checks.
 
 `coordinator.py`  
 Contains the main swarm coordination logic.
@@ -112,6 +117,9 @@ Provides a clean interface for the rest of the autonomy stack and the BT.
 `main.py`  
 Runs a local demo for role election, converge behaviour, and parent reassignment.
 
+`run_swarm.py`  
+Runs timestamped swarm replay input through the coordinator and logs the outputs.
+
 `README.md`  
 Explains the purpose, structure, and current status of this module.
 
@@ -119,27 +127,28 @@ Explains the purpose, structure, and current status of this module.
 
 The current baseline has already been tested locally.
 
-The demo already shows that:
+The demo now shows that:
 - a parent drone is selected correctly
 - child drones are assigned correctly
 - the priority list is generated correctly
-- parent loss is detected correctly
-- a new parent is assigned correctly
+- target-aware task assignment works
+- converge completion is detected correctly
+- stale drones are detected correctly
+- parent timeout is detected correctly
+- a new parent is assigned correctly after timeout
 - BT coordination flags update correctly after reassignment
 
-So the current module already gives the project a usable first swarm coordination baseline.
+So the current module already gives the project a strong first swarm coordination baseline.
 
 ## What is still missing
 
-This is still a first version. The core coordination logic is there, but more work is still needed before full system use.
+This is still an early but working version. The core coordination logic is now there, but more work is still needed before full system use.
 
 The next main areas still to add are:
-- heartbeat timeout handling using real update timestamps
-- task assignment per drone
 - target handover logic
 - real comms message or payload flow
 - stronger multi-drone deconfliction logic
-- replay or run script for timestamped swarm testing
+- cleaner payload adapter support for incoming drone state messages
 - integration with the full autonomy stack
 
 ## Why this matters
@@ -150,6 +159,7 @@ Without a swarm coordination layer, the mission logic would not know:
 - which drone is acting as the parent
 - which drones should follow as children
 - when to trigger reassignment
+- what each drone should currently do
 - when the drones have successfully converged on the target
 
 This module fills that gap.
@@ -158,9 +168,10 @@ This module fills that gap.
 
 This module is responsible for the coordination logic between multiple drones in the swarm.
 
-In simplest terms:
+In simple terms:
 - it decides parent and child roles
 - it keeps track of priority order
+- it assigns high-level tasks
 - it detects when the parent has been lost
 - it reassigns a new parent when needed
 - it reports clean coordination flags to the Behaviour Tree

@@ -1,5 +1,5 @@
+from .adapters import drone_from_payload
 from .interface import SwarmCoordinationInterface
-from .models import DroneState
 
 
 def print_decision(title: str, decision, bt_flags) -> None:
@@ -19,69 +19,69 @@ def print_decision(title: str, decision, bt_flags) -> None:
 def main() -> None:
     swarm = SwarmCoordinationInterface()
 
-    drones = [
-        DroneState(
-            drone_id="drone_1",
-            x_m=0.0,
-            y_m=0.0,
-            z_m=10.0,
-            battery_pct=95.0,
-            comms_ok=True,
-            nav_ok=True,
-            target_detected=True,
-            target_x_m=20.0,
-            target_y_m=8.0,
-            last_update_s=0.0,
-        ),
-        DroneState(
-            drone_id="drone_2",
-            x_m=10.0,
-            y_m=4.0,
-            z_m=10.0,
-            battery_pct=88.0,
-            comms_ok=True,
-            nav_ok=True,
-            target_detected=True,
-            target_x_m=20.0,
-            target_y_m=8.0,
-            last_update_s=0.0,
-        ),
-        DroneState(
-            drone_id="drone_3",
-            x_m=14.0,
-            y_m=5.0,
-            z_m=10.0,
-            battery_pct=82.0,
-            comms_ok=True,
-            nav_ok=True,
-            target_detected=False,
-            last_update_s=0.0,
-        ),
+    payloads = [
+        {
+            "drone_id": "drone_1",
+            "timestamp_s": 0.0,
+            "x_m": 0.0,
+            "y_m": 0.0,
+            "z_m": 10.0,
+            "battery_pct": 95.0,
+            "comms_ok": True,
+            "nav_ok": True,
+            "target_detected": True,
+            "target_x_m": 20.0,
+            "target_y_m": 8.0,
+        },
+        {
+            "drone_id": "drone_2",
+            "timestamp_s": 0.0,
+            "x_m": 10.0,
+            "y_m": 4.0,
+            "z_m": 10.0,
+            "battery_pct": 88.0,
+            "comms_ok": True,
+            "nav_ok": True,
+            "target_detected": True,
+            "target_x_m": 20.0,
+            "target_y_m": 8.0,
+        },
+        {
+            "drone_id": "drone_3",
+            "timestamp_s": 0.0,
+            "x_m": 14.0,
+            "y_m": 5.0,
+            "z_m": 10.0,
+            "battery_pct": 82.0,
+            "comms_ok": True,
+            "nav_ok": True,
+            "target_detected": False,
+        },
     ]
 
-    swarm.update_many(drones)
+    swarm.update_many([drone_from_payload(p) for p in payloads])
     decision, bt_flags = swarm.step(timestamp_s=0.0)
     print_decision("Initial decision", decision, bt_flags)
 
-    drones[0].last_update_s = 1.0
-    drones[1].last_update_s = 1.0
-    drones[2].last_update_s = 1.0
+    payloads[1]["timestamp_s"] = 1.0
+    payloads[1]["x_m"] = 19.0
+    payloads[1]["y_m"] = 8.5
 
-    drones[1].x_m, drones[1].y_m = 19.0, 8.5
-    drones[2].x_m, drones[2].y_m = 20.5, 7.5
-    drones[2].target_detected = True
-    drones[2].target_x_m = 20.0
-    drones[2].target_y_m = 8.0
+    payloads[2]["timestamp_s"] = 1.0
+    payloads[2]["x_m"] = 20.5
+    payloads[2]["y_m"] = 7.5
+    payloads[2]["target_detected"] = True
+    payloads[2]["target_x_m"] = 20.0
+    payloads[2]["target_y_m"] = 8.0
 
-    swarm.update_many(drones)
+    swarm.update_many([drone_from_payload(p) for p in payloads])
     decision, bt_flags = swarm.step(timestamp_s=1.0)
     print_decision("After converge movement", decision, bt_flags)
 
-    # Simulate parent timeout by leaving drone_1 stale
-    drones[1].last_update_s = 4.0
-    drones[2].last_update_s = 4.0
+    payloads[1]["timestamp_s"] = 4.0
+    payloads[2]["timestamp_s"] = 4.0
 
-    swarm.update_many(drones)
+    swarm.update_many([drone_from_payload(p) for p in payloads[1:]])
     decision, bt_flags = swarm.step(timestamp_s=4.5)
     print_decision("After parent timeout", decision, bt_flags)
 

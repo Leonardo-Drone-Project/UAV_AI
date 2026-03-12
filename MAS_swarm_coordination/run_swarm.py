@@ -3,26 +3,8 @@ import csv
 import json
 from pathlib import Path
 
+from .adapters import drone_from_payload
 from .interface import SwarmCoordinationInterface
-from .models import DroneState
-
-
-def drone_from_payload(payload: dict) -> DroneState:
-    return DroneState(
-        drone_id=str(payload["drone_id"]),
-        x_m=float(payload.get("x_m", 0.0)),
-        y_m=float(payload.get("y_m", 0.0)),
-        z_m=float(payload.get("z_m", 0.0)),
-        battery_pct=float(payload.get("battery_pct", 100.0)),
-        comms_ok=bool(payload.get("comms_ok", True)),
-        nav_ok=bool(payload.get("nav_ok", True)),
-        available=bool(payload.get("available", True)),
-        direct_control_enabled=bool(payload.get("direct_control_enabled", False)),
-        target_detected=bool(payload.get("target_detected", False)),
-        target_x_m=None if payload.get("target_x_m") is None else float(payload.get("target_x_m")),
-        target_y_m=None if payload.get("target_y_m") is None else float(payload.get("target_y_m")),
-        last_update_s=float(payload.get("last_update_s", payload.get("timestamp_s", 0.0))),
-    )
 
 
 def main() -> None:
@@ -74,8 +56,8 @@ def main() -> None:
                 continue
 
             payload = json.loads(line)
-            timestamp_s = float(payload.get("timestamp_s", 0.0))
             drone = drone_from_payload(payload)
+            timestamp_s = float(payload.get("timestamp_s", payload.get("timestamp", drone.last_update_s)))
 
             swarm.update_drone(drone)
             decision, bt_flags = swarm.step(timestamp_s=timestamp_s)
