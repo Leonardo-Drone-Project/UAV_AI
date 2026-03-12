@@ -33,6 +33,9 @@ class SwarmDecision:
     parent_id: Optional[str] = None
     priority_list: List[str] = field(default_factory=list)
     assigned_roles: Dict[str, str] = field(default_factory=dict)
+    task_assignments: Dict[str, str] = field(default_factory=dict)
+
+    stale_drone_ids: List[str] = field(default_factory=list)
 
     swarm_coordinated: bool = False
     roles_assigned: bool = False
