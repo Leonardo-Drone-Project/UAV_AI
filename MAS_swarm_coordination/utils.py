@@ -127,8 +127,10 @@ def choose_target_candidate(
     drones_by_id: Dict[str, DroneState],
     roles: Dict[str, str],
     target_xy: Optional[Tuple[float, float]],
+    current_target_owner_id: Optional[str],
     now_s: float,
     config: SwarmConfig,
+    blocked_candidate_ids: Optional[Set[str]] = None,
 ) -> Optional[str]:
     if target_xy is None or not roles:
         return None
@@ -144,10 +146,28 @@ def choose_target_candidate(
         return None
 
     candidate_pool = tracking_candidates
+
     if config.prefer_child_for_target_tracking:
         children = [d for d in candidate_pool if roles.get(d.drone_id) == "child"]
         if children:
             candidate_pool = children
+
+    blocked_candidate_ids = blocked_candidate_ids or set()
+    filtered_pool = [
+        d for d in candidate_pool
+        if (d.drone_id not in blocked_candidate_ids) or (d.drone_id == current_target_owner_id)
+    ]
+
+    if filtered_pool:
+        candidate_pool = filtered_pool
+    elif current_target_owner_id is not None:
+        current_owner = drones_by_id.get(current_target_owner_id)
+        if current_owner is not None and current_owner in candidate_pool:
+            candidate_pool = [current_owner]
+        else:
+            return None
+    else:
+        return None
 
     best_candidate = min(candidate_pool, key=lambda d: distance_xy_m(d.position_xy(), target_xy))
     return best_candidate.drone_id

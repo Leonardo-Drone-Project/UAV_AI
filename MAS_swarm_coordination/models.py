@@ -79,5 +79,7 @@ class SwarmDecision:
     target_handover_required: bool = False
     target_handover_complete: bool = False
 
+    target_owner_lock_active: bool = False
+
 
 

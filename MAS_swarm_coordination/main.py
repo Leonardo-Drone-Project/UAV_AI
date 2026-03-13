@@ -13,6 +13,7 @@ def print_decision(title: str, decision, bt_flags) -> None:
     print(f"Handover state: {decision.handover_state}")
     print(f"Target handover required: {decision.target_handover_required}")
     print(f"Target handover complete: {decision.target_handover_complete}")
+    print(f"Target owner lock active: {decision.target_owner_lock_active}")
     print(f"Stale drones: {decision.stale_drone_ids}")
     print(f"Heartbeat lost drones: {decision.heartbeat_lost_drone_ids}")
     print(f"Deconfliction active: {decision.deconfliction_active}")
@@ -100,39 +101,44 @@ def main() -> None:
     decision, bt_flags = swarm.step(timestamp_s=0.0)
     print_decision("Initial decision", decision, bt_flags)
 
+    # Clean handover request. No deconfliction. No parent loss.
+    payloads[0]["timestamp_s"] = 1.0
+    payloads[0]["last_heartbeat_s"] = 1.0
+    payloads[0]["last_update_s"] = 1.0
+
     payloads[1]["timestamp_s"] = 1.0
     payloads[1]["x_m"] = 20.0
     payloads[1]["y_m"] = 8.0
     payloads[1]["target_confidence"] = 0.92
     payloads[1]["handover_ack"] = True
-    payloads[1]["tracking_locked"] = False
     payloads[1]["last_heartbeat_s"] = 1.0
     payloads[1]["last_update_s"] = 1.0
 
     payloads[2]["timestamp_s"] = 1.0
-    payloads[2]["tracking_locked"] = True
+    payloads[2]["x_m"] = 24.0
+    payloads[2]["y_m"] = 8.1
+    payloads[2]["tracking_locked"] = False
     payloads[2]["last_track_update_s"] = 1.0
     payloads[2]["last_heartbeat_s"] = 1.0
     payloads[2]["last_update_s"] = 1.0
 
     swarm.update_many([drone_from_payload(p) for p in payloads])
     decision, bt_flags = swarm.step(timestamp_s=1.0)
-    print_decision("After handover request and accept", decision, bt_flags)
+    print_decision("After clean handover", decision, bt_flags)
 
-    payloads[1]["timestamp_s"] = 2.0
+    # Deconfliction scenario after owner lock.
+    payloads[0]["timestamp_s"] = 3.0
+    payloads[0]["last_heartbeat_s"] = 3.0
+    payloads[0]["last_update_s"] = 3.0
+
+    payloads[1]["timestamp_s"] = 3.0
+    payloads[1]["x_m"] = 20.0
+    payloads[1]["y_m"] = 8.0
     payloads[1]["tracking_locked"] = True
-    payloads[1]["last_track_update_s"] = 2.0
-    payloads[1]["last_heartbeat_s"] = 2.0
-    payloads[1]["last_update_s"] = 2.0
-
-    payloads[2]["timestamp_s"] = 2.0
-    payloads[2]["tracking_locked"] = False
-    payloads[2]["last_heartbeat_s"] = 2.0
-    payloads[2]["last_update_s"] = 2.0
-
-    swarm.update_many([drone_from_payload(p) for p in payloads])
-    decision, bt_flags = swarm.step(timestamp_s=2.0)
-    print_decision("After handover completion", decision, bt_flags)
+    payloads[1]["last_track_update_s"] = 3.0
+    payloads[1]["handover_ack"] = False
+    payloads[1]["last_heartbeat_s"] = 3.0
+    payloads[1]["last_update_s"] = 3.0
 
     payloads[2]["timestamp_s"] = 3.0
     payloads[2]["x_m"] = 20.9
@@ -140,26 +146,21 @@ def main() -> None:
     payloads[2]["last_heartbeat_s"] = 3.0
     payloads[2]["last_update_s"] = 3.0
 
-    payloads[1]["timestamp_s"] = 3.0
-    payloads[1]["x_m"] = 20.0
-    payloads[1]["y_m"] = 8.0
-    payloads[1]["last_heartbeat_s"] = 3.0
-    payloads[1]["last_update_s"] = 3.0
-
     swarm.update_many([drone_from_payload(p) for p in payloads])
     decision, bt_flags = swarm.step(timestamp_s=3.0)
     print_decision("After deconfliction scenario", decision, bt_flags)
 
-    payloads[1]["timestamp_s"] = 5.0
-    payloads[1]["last_heartbeat_s"] = 5.0
-    payloads[1]["last_update_s"] = 5.0
+    # Parent timeout later, separated from handover.
+    payloads[1]["timestamp_s"] = 6.0
+    payloads[1]["last_heartbeat_s"] = 6.0
+    payloads[1]["last_update_s"] = 6.0
 
-    payloads[2]["timestamp_s"] = 5.0
-    payloads[2]["last_heartbeat_s"] = 5.0
-    payloads[2]["last_update_s"] = 5.0
+    payloads[2]["timestamp_s"] = 6.0
+    payloads[2]["last_heartbeat_s"] = 6.0
+    payloads[2]["last_update_s"] = 6.0
 
     swarm.update_many([drone_from_payload(p) for p in payloads[1:]])
-    decision, bt_flags = swarm.step(timestamp_s=5.5)
+    decision, bt_flags = swarm.step(timestamp_s=6.5)
     print_decision("After parent timeout", decision, bt_flags)
 
 

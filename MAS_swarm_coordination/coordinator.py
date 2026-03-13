@@ -32,6 +32,9 @@ class SwarmCoordinator:
         self.handover_state: str = "IDLE"
         self.handover_request_start_s: Optional[float] = None
 
+        self.target_owner_lock_until_s: float = 0.0
+        self.parent_reassignment_lock_until_s: float = 0.0
+
         self._active_deconfliction_pairs: Set[Tuple[str, str]] = set()
 
     def update_drone(self, drone: DroneState) -> None:
@@ -64,26 +67,41 @@ class SwarmCoordinator:
         now_s: float,
         desired_owner_id: Optional[str],
         target_known: bool,
+        blocked_candidate_ids: Optional[Set[str]] = None,
     ) -> Tuple[bool, bool, str]:
+        blocked_candidate_ids = blocked_candidate_ids or set()
         target_handover_required = False
         target_handover_complete = False
-        output_state = self.handover_state
 
         if not target_known or desired_owner_id is None:
-            if self.active_target_owner_id is not None:
-                current_owner = self._drones.get(self.active_target_owner_id)
-                if current_owner is None or not drone_is_valid_for_tracking(current_owner, now_s, self.config):
-                    self.active_target_owner_id = None
+            current_owner = self._drones.get(self.active_target_owner_id) if self.active_target_owner_id else None
+            if current_owner is None or not drone_is_valid_for_tracking(current_owner, now_s, self.config):
+                self.active_target_owner_id = None
             self._reset_handover()
             return False, False, "IDLE"
 
-        if self.active_target_owner_id is not None:
-            current_owner = self._drones.get(self.active_target_owner_id)
-            if current_owner is None or not drone_is_valid_for_tracking(current_owner, now_s, self.config):
-                self.active_target_owner_id = None
+        current_owner = self._drones.get(self.active_target_owner_id) if self.active_target_owner_id else None
+        current_owner_valid = (
+            current_owner is not None
+            and drone_is_valid_for_tracking(current_owner, now_s, self.config)
+        )
+
+        if self.active_target_owner_id is not None and not current_owner_valid:
+            self.active_target_owner_id = None
+            self.target_owner_lock_until_s = 0.0
+            current_owner = None
+            current_owner_valid = False
 
         if self.active_target_owner_id is None:
             self.active_target_owner_id = desired_owner_id
+            self._reset_handover()
+            return False, False, "IDLE"
+
+        if current_owner_valid and now_s < self.target_owner_lock_until_s:
+            self._reset_handover()
+            return False, False, "IDLE"
+
+        if current_owner_valid and now_s < self.parent_reassignment_lock_until_s:
             self._reset_handover()
             return False, False, "IDLE"
 
@@ -98,46 +116,53 @@ class SwarmCoordinator:
             self.handover_request_start_s = now_s
             self.handover_state = "REQUESTED"
 
-        pending = self._drones.get(self.pending_target_owner_id) if self.pending_target_owner_id is not None else None
+        pending = self._drones.get(self.pending_target_owner_id) if self.pending_target_owner_id else None
 
-        if pending is None or not drone_is_healthy_for_swarm(pending, now_s, self.config):
-            self.handover_state = "FAILED"
-            output_state = "FAILED"
+        if pending is None:
             self.pending_target_owner_id = None
             self.handover_request_start_s = None
-            return False, False, output_state
+            self.handover_state = "FAILED"
+            return False, False, "FAILED"
+
+        if pending.drone_id in blocked_candidate_ids:
+            self.pending_target_owner_id = None
+            self.handover_request_start_s = None
+            self.handover_state = "FAILED"
+            return False, False, "FAILED"
+
+        if not drone_is_valid_for_tracking(pending, now_s, self.config):
+            self.pending_target_owner_id = None
+            self.handover_request_start_s = None
+            self.handover_state = "FAILED"
+            return False, False, "FAILED"
 
         if pending.handover_reject:
-            self.handover_state = "FAILED"
-            output_state = "FAILED"
             self.pending_target_owner_id = None
             self.handover_request_start_s = None
-            return False, False, output_state
+            self.handover_state = "FAILED"
+            return False, False, "FAILED"
 
         if self.handover_request_start_s is not None:
             if (now_s - self.handover_request_start_s) > self.config.handover_accept_timeout_s:
-                self.handover_state = "TIMED_OUT"
-                output_state = "TIMED_OUT"
                 self.pending_target_owner_id = None
                 self.handover_request_start_s = None
-                return False, False, output_state
+                self.handover_state = "TIMED_OUT"
+                return False, False, "TIMED_OUT"
 
         if self.handover_state == "REQUESTED" and pending.handover_ack:
             self.handover_state = "ACCEPTED"
 
         if self.handover_state == "ACCEPTED":
-            if drone_is_valid_for_tracking(pending, now_s, self.config):
-                self.last_target_owner_id = self.active_target_owner_id
-                self.active_target_owner_id = self.pending_target_owner_id
-                self.pending_target_owner_id = None
-                self.handover_request_start_s = None
-                self.handover_state = "ACTIVE"
-                target_handover_complete = True
-                output_state = "ACTIVE"
-                return target_handover_required, target_handover_complete, output_state
+            self.last_target_owner_id = self.active_target_owner_id
+            self.active_target_owner_id = pending.drone_id
+            self.pending_target_owner_id = None
+            self.handover_request_start_s = None
+            self.handover_state = "ACTIVE"
+            self.target_owner_lock_until_s = now_s + self.config.target_owner_stability_lock_s
+            target_handover_complete = True
+            return True, True, "ACTIVE"
 
-        output_state = self.handover_state
-        return target_handover_required, target_handover_complete, output_state
+        return True, False, self.handover_state
 
     def step(self, timestamp_s: float) -> SwarmDecision:
         now_s = float(timestamp_s)
@@ -173,24 +198,11 @@ class SwarmCoordinator:
         self.last_parent_id = self.active_parent_id
         self.active_parent_id = parent_id
 
+        if parent_reassigned:
+            self.parent_reassignment_lock_until_s = now_s + self.config.parent_reassignment_stability_lock_s
+
         target_xy = estimate_target_xy(drones)
         target_known = target_xy is not None
-
-        desired_target_owner_id = choose_target_candidate(
-            drones_by_id=self._drones,
-            roles=roles,
-            target_xy=target_xy,
-            now_s=now_s,
-            config=self.config,
-        )
-
-        target_handover_required, target_handover_complete, handover_state_out = self._update_handover_state(
-            now_s=now_s,
-            desired_owner_id=desired_target_owner_id,
-            target_known=target_known,
-        )
-
-        self.last_target_owner_id = prev_target_owner_id
 
         deconfliction_active, deconfliction_pairs, collision_risk, next_active_pairs = detect_deconfliction(
             drones_by_id=self._drones,
@@ -200,6 +212,28 @@ class SwarmCoordinator:
             previous_active_pairs=self._active_deconfliction_pairs,
         )
         self._active_deconfliction_pairs = next_active_pairs
+
+        blocked_candidate_ids: Set[str] = set()
+        for a_id, b_id in deconfliction_pairs:
+            blocked_candidate_ids.add(a_id)
+            blocked_candidate_ids.add(b_id)
+
+        desired_target_owner_id = choose_target_candidate(
+            drones_by_id=self._drones,
+            roles=roles,
+            target_xy=target_xy,
+            current_target_owner_id=self.active_target_owner_id,
+            now_s=now_s,
+            config=self.config,
+            blocked_candidate_ids=blocked_candidate_ids,
+        )
+
+        target_handover_required, target_handover_complete, handover_state_out = self._update_handover_state(
+            now_s=now_s,
+            desired_owner_id=desired_target_owner_id,
+            target_known=target_known,
+            blocked_candidate_ids=blocked_candidate_ids,
+        )
 
         hold_ids = resolve_deconfliction_holds(
             conflict_pairs=deconfliction_pairs,
@@ -261,7 +295,6 @@ class SwarmCoordinator:
             degraded_reasons.append("handover_in_progress")
 
         swarm_degraded = (not swarm_failure) and bool(degraded_reasons)
-
         swarm_ready = (not swarm_failure) and parent_id is not None and len(priority_list) >= 1
 
         decision = SwarmDecision(
@@ -294,6 +327,7 @@ class SwarmCoordinator:
             handover_state=handover_state_out,
             target_handover_required=target_handover_required,
             target_handover_complete=target_handover_complete,
+            target_owner_lock_active=(now_s < self.target_owner_lock_until_s),
         )
 
         if self.handover_state == "ACTIVE":

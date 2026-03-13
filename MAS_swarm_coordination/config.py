@@ -24,5 +24,8 @@ class SwarmConfig:
     min_target_confidence: float = 0.50
     track_lock_timeout_s: float = 1.5
 
+    target_owner_stability_lock_s: float = 2.0
+    parent_reassignment_stability_lock_s: float = 1.5
+
     min_separation_m: float = 2.5
     clear_separation_m: float = 3.25
