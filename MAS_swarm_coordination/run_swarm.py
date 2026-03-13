@@ -3,7 +3,7 @@ import csv
 import json
 from pathlib import Path
 
-from .adapters import drone_from_payload
+from .adapters import decision_to_command_messages, drone_from_payload
 from .interface import SwarmCoordinationInterface
 
 
@@ -38,18 +38,26 @@ def main() -> None:
                 "assigned_roles",
                 "task_assignments",
                 "target_owner_id",
+                "pending_target_owner_id",
+                "handover_state",
                 "target_handover_required",
                 "target_handover_complete",
                 "stale_drone_ids",
+                "heartbeat_lost_drone_ids",
+                "deconfliction_active",
+                "collision_risk",
+                "deconfliction_pairs",
                 "swarm_coordinated",
-                "roles_assigned",
-                "priority_list_sent",
-                "role_election_failed",
+                "swarm_degraded",
+                "swarm_failure",
+                "degraded_reasons",
+                "failure_reason",
                 "parent_lost",
                 "parent_reassigned",
                 "converge_complete",
                 "target_known",
                 "target_xy_m",
+                "command_messages",
             ]
         )
 
@@ -64,6 +72,8 @@ def main() -> None:
 
             swarm.update_drone(drone)
             decision, bt_flags = swarm.step(timestamp_s=timestamp_s)
+            commands = [cmd.to_dict() for cmd in decision_to_command_messages(decision)]
+
             last_ts = timestamp_s
             event_count += 1
 
@@ -76,18 +86,26 @@ def main() -> None:
                     json.dumps(decision.assigned_roles),
                     json.dumps(decision.task_assignments),
                     decision.target_owner_id,
+                    decision.pending_target_owner_id,
+                    decision.handover_state,
                     int(decision.target_handover_required),
                     int(decision.target_handover_complete),
                     "|".join(decision.stale_drone_ids),
+                    "|".join(decision.heartbeat_lost_drone_ids),
+                    int(decision.deconfliction_active),
+                    int(decision.collision_risk),
+                    json.dumps(decision.deconfliction_pairs),
                     int(decision.swarm_coordinated),
-                    int(decision.roles_assigned),
-                    int(decision.priority_list_sent),
-                    int(decision.role_election_failed),
+                    int(decision.swarm_degraded),
+                    int(decision.swarm_failure),
+                    "|".join(decision.degraded_reasons),
+                    decision.failure_reason,
                     int(decision.parent_lost),
                     int(decision.parent_reassigned),
                     int(decision.converge_complete),
                     int(decision.target_known),
                     "" if decision.target_xy_m is None else f"{decision.target_xy_m[0]:.3f},{decision.target_xy_m[1]:.3f}",
+                    json.dumps(commands),
                 ]
             )
 
@@ -96,9 +114,10 @@ def main() -> None:
                     f"[INFO] event={event_count} drone={drone.drone_id} "
                     f"parent={decision.parent_id} "
                     f"target_owner={decision.target_owner_id} "
-                    f"handover={int(decision.target_handover_complete)} "
-                    f"reassigned={int(decision.parent_reassigned)} "
-                    f"converge={int(decision.converge_complete)} "
+                    f"handover_state={decision.handover_state} "
+                    f"deconflict={int(decision.deconfliction_active)} "
+                    f"degraded={int(decision.swarm_degraded)} "
+                    f"failure={int(decision.swarm_failure)} "
                     f"bt_flags={bt_flags}"
                 )
 
@@ -111,6 +130,10 @@ def main() -> None:
     print(f"[INFO] Final roles: {final_decision.assigned_roles}")
     print(f"[INFO] Final tasks: {final_decision.task_assignments}")
     print(f"[INFO] Final target owner: {final_decision.target_owner_id}")
+    print(f"[INFO] Final handover state: {final_decision.handover_state}")
+    print(f"[INFO] Final deconfliction active: {final_decision.deconfliction_active}")
+    print(f"[INFO] Final degraded: {final_decision.swarm_degraded}")
+    print(f"[INFO] Final failure: {final_decision.swarm_failure}")
     print(f"[INFO] Final BT flags: {final_bt_flags}")
 
 

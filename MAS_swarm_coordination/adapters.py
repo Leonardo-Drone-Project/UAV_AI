@@ -1,6 +1,8 @@
-from typing import Any, Dict, Optional, Tuple
+import json
+from typing import Any, Dict, List, Optional, Tuple
 
-from .models import DroneState
+from .models import DroneState, SwarmDecision
+from .schemas import DroneStatusMessage, SwarmCommandMessage
 
 
 def _first(payload: Dict[str, Any], keys, default=None):
@@ -87,7 +89,7 @@ def _target_xy_from_payload(payload: Dict[str, Any]) -> Tuple[Optional[float], O
     )
 
 
-def drone_from_payload(payload: Dict[str, Any]) -> DroneState:
+def payload_to_status_message(payload: Dict[str, Any]) -> DroneStatusMessage:
     drone_id = _first(payload, ["drone_id", "id", "agent_id", "uav_id"], default=None)
     if drone_id is None:
         raise ValueError("Payload must contain a drone_id, id, agent_id, or uav_id field")
@@ -107,8 +109,12 @@ def drone_from_payload(payload: Dict[str, Any]) -> DroneState:
         target_detected = _to_bool(explicit_target_detected, default=False)
 
     timestamp_s = _timestamp_s(payload)
+    last_update_s = float(_first(payload, ["last_update_s"], default=timestamp_s))
+    last_heartbeat_s = float(_first(payload, ["last_heartbeat_s"], default=timestamp_s))
+    last_track_update_s = float(_first(payload, ["last_track_update_s"], default=timestamp_s))
 
-    return DroneState(
+    msg = DroneStatusMessage(
+        timestamp_s=timestamp_s,
         drone_id=str(drone_id),
         x_m=x_m,
         y_m=y_m,
@@ -124,5 +130,86 @@ def drone_from_payload(payload: Dict[str, Any]) -> DroneState:
         target_detected=target_detected,
         target_x_m=target_x_m,
         target_y_m=target_y_m,
-        last_update_s=float(_first(payload, ["last_update_s"], default=timestamp_s)),
+        target_confidence=float(_first(payload, ["target_confidence", "target_conf", "confidence"], default=0.0)),
+        tracking_locked=_to_bool(_first(payload, ["tracking_locked", "track_locked"], default=False), default=False),
+        last_track_update_s=last_track_update_s,
+        handover_ack=_to_bool(_first(payload, ["handover_ack", "handover_accept"], default=False), default=False),
+        handover_reject=_to_bool(_first(payload, ["handover_reject"], default=False), default=False),
+        last_update_s=last_update_s,
+        last_heartbeat_s=last_heartbeat_s,
+        heartbeat_seq=int(_first(payload, ["heartbeat_seq", "hb_seq"], default=0)),
+        missed_heartbeats=int(_first(payload, ["missed_heartbeats", "hb_missed"], default=0)),
     )
+    msg.validate()
+    return msg
+
+
+def drone_from_payload(payload: Dict[str, Any]) -> DroneState:
+    msg = payload_to_status_message(payload)
+
+    return DroneState(
+        drone_id=msg.drone_id,
+        x_m=msg.x_m,
+        y_m=msg.y_m,
+        z_m=msg.z_m,
+        battery_pct=msg.battery_pct,
+        comms_ok=msg.comms_ok,
+        nav_ok=msg.nav_ok,
+        available=msg.available,
+        direct_control_enabled=msg.direct_control_enabled,
+        target_detected=msg.target_detected,
+        target_x_m=msg.target_x_m,
+        target_y_m=msg.target_y_m,
+        target_confidence=msg.target_confidence,
+        tracking_locked=msg.tracking_locked,
+        last_track_update_s=msg.last_track_update_s,
+        handover_ack=msg.handover_ack,
+        handover_reject=msg.handover_reject,
+        last_update_s=msg.last_update_s,
+        last_heartbeat_s=msg.last_heartbeat_s,
+        heartbeat_seq=msg.heartbeat_seq,
+        missed_heartbeats=msg.missed_heartbeats,
+    )
+
+
+def decision_to_command_messages(decision: SwarmDecision) -> List[SwarmCommandMessage]:
+    commands: List[SwarmCommandMessage] = []
+
+    for drone_id, role in decision.assigned_roles.items():
+        task = decision.task_assignments.get(drone_id, "idle")
+        priority_index = decision.priority_list.index(drone_id) if drone_id in decision.priority_list else -1
+        hold_position = task == "hold_position_deconflict"
+
+        reason = "mission"
+        if decision.swarm_failure:
+            reason = "swarm_failure"
+        elif hold_position:
+            reason = "deconfliction"
+        elif decision.handover_state in {"REQUESTED", "ACCEPTED"} and drone_id == decision.pending_target_owner_id:
+            reason = "handover_pending"
+        elif drone_id == decision.target_owner_id:
+            reason = "target_owner"
+        elif drone_id == decision.parent_id:
+            reason = "parent"
+
+        commands.append(
+            SwarmCommandMessage(
+                timestamp_s=decision.timestamp_s,
+                drone_id=drone_id,
+                parent_id=decision.parent_id,
+                role=role,
+                task=task,
+                priority_index=priority_index,
+                target_owner_id=decision.target_owner_id,
+                target_xy_m=decision.target_xy_m,
+                handover_state=decision.handover_state,
+                swarm_degraded=decision.swarm_degraded,
+                swarm_failure=decision.swarm_failure,
+                hold_position=hold_position,
+                deconfliction_active=decision.deconfliction_active,
+                collision_risk=decision.collision_risk,
+                reason=reason,
+            )
+        )
+
+    return commands
