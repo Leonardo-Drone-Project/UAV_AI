@@ -1,26 +1,196 @@
 # Behaviour Tree (BT) Decision Making
 
 ## Overview
-This module implements a Behaviour Tree–based decision layer for UAV autonomy.  
-The Behaviour Tree determines *what the drone should do* at each timestep based on mission state, independent of perception and path planning.
+This module implements a Behaviour Tree based decision layer for UAV autonomy.
 
-At this stage, sensor inputs and actions are stubbed to allow deterministic testing of decision logic without relying on YOLO or A*.
+The Behaviour Tree determines what the drone should do at each timestep based on mission state, mission events, swarm coordination inputs, safety flags, and target detection inputs.
 
----
-
-## Behaviour States
-The current Behaviour Tree supports the following high-level states:
-
-- **SEARCH** – Slow yaw scan while holding position to locate a target.  
-- **TRACK** – Actively track a detected target and keep it centred.  
-- **LOST** – Short reacquisition state before returning to SEARCH.  
-- **FAILSAFE** – Reserved for safety-critical conditions.
+At the current stage, perception and downstream action execution are kept lightweight so the decision logic can be tested deterministically without requiring full end to end integration with YOLO, A*, flight control, or real hardware.
 
 State transitions are logged for offline analysis.
 
----
+## Purpose
+The BT acts as the high-level mission decision layer for the autonomy stack.
 
-## Architecture
-The Behaviour Tree is implemented using a shared blackboard and modular components:
+It is responsible for:
+- managing mission progression from idle to launch, search, tracking, return, and landing
+- responding to swarm coordination inputs from the MAS module
+- handling target detection, loss, verification, and reacquisition
+- applying safety overrides such as failsafe, emergency landing, parent loss, and communications loss
+- producing clean mission mode and target mode outputs for downstream control layers
 
+## Current Behaviour Structure
+
+The BT includes both:
+- mission-level states
+- target-level sub-states
+
+### Mission-level states
+The current implementation supports the following mission states:
+
+- `IDLE`
+- `DOWNLOAD_MISSION`
+- `REQUEST_MISSING_DATA`
+- `STORE_MISSION_DATA`
+- `INITIALISE`
+- `COORDINATE_SWARM`
+- `DETERMINE_ROLES`
+- `WAIT_LAUNCH`
+- `TAKEOFF_ARM`
+- `TAKEOFF_SET_ALTITUDE_TARGET`
+- `TAKEOFF_CLIMB`
+- `HOVER_STABILISE`
+- `FLY_TO_SEARCH_AREA`
+- `SEARCH_AREA`
+- `VERIFY_TARGET`
+- `TARGET_REPORT`
+- `CONVERGE_DRONES`
+- `TARGET_TRACKING`
+- `SEARCH_LAST_KNOWN_LOCATION`
+- `DIRECT_CONTROL`
+- `PARENT_REASSIGNED`
+- `LOST_COMMUNICATIONS`
+- `RETURN_TO_BASE`
+- `LANDING`
+- `EMERGENCY_LANDING`
+- `FAILSAFE`
+
+### Target-level sub-states
+Within target-search related mission phases, the current implementation supports the following target states:
+
+- `SEARCH`
+- `TRACK`
+- `LOST`
+
+These are mainly used during:
+- `SEARCH_AREA`
+- `SEARCH_LAST_KNOWN_LOCATION`
+
+## Current Decision Logic
+
+### Mission progression
+The BT progresses through the mission lifecycle using validated boolean inputs such as:
+- mission upload received
+- mission data complete
+- launch command received
+- arm permission received
+- altitude reached
+- hover stable
+- arrived at search area
+- target confirmed
+- report sent
+- converge complete
+- mission complete
+- return to base conditions
+
+### Target handling
+The BT includes internal target-state logic which:
+- debounces detections before entering track
+- transitions from `SEARCH` to `TRACK` on stable target detection
+- transitions from `TRACK` to `LOST` when detection is lost
+- transitions from `LOST` back to `TRACK` if the target is reacquired
+- transitions from `LOST` back to `SEARCH` if reacquisition times out
+
+### Safety overrides
+The BT includes explicit safety and override routing for:
+- failsafe requests
+- manual reset from failsafe
+- emergency landing on critical battery, fault, or damage
+- parent loss and reassignment handling
+- communications loss and restoration
+- automatic return to base on communications timeout
+- recall received
+- landing and post-landing reset
+
+## Inputs
+The BT reads an `Inputs` structure which includes:
+
+- perception inputs such as target detection, confidence, and image offsets
+- swarm coordination flags from the MAS module
+- mission upload and mission validity flags
+- launch and arm states
+- flight progress flags
+- target verification and reporting flags
+- converge and tracking flags
+- parent loss and parent reassignment flags
+- communications status flags
+- recall and mission completion flags
+- search timeout flags
+- landing and safety flags
+
+This keeps the BT modular and independent from any one specific upstream subsystem.
+
+## Outputs
+The BT produces an `ActionOutputs` structure containing:
+
+- `mission_mode`
+- `target_mode`
+- `yaw_rate_cmd`
+- `forward_vel_cmd`
+- `gimbal_pitch_cmd`
+- `hold_position`
+
+These outputs are currently generated by stub action functions for deterministic testing of decision logic.
+
+## File Structure
+
+`blackboard.py`  
+Stores the persistent Behaviour Tree state, mission mode, target state, timers, and last known target information.
+
+`inputs.py`  
+Defines the structured BT input dataclass used to drive mission and target transitions.
+
+`actions.py`  
+Defines the current action output structure and the stub action functions for search, track, lost, last known search, and hold behaviour.
+
+`bt.py`  
+Contains the main Behaviour Tree logic, including:
+- mission state transitions
+- target-state transitions
+- safety override routing
+- action output selection
+
+`main.py`  
+Runs the BT loop, optionally using demo auto-start and perception JSON input, and logs state transitions and outputs to CSV.
+
+`perception_client.py`  
+Provides a lightweight interface for reading target detection results from a JSON file.
+
+## Current Validation Scope
+At the current stage, the BT is intended to be validated at the decision-logic level.
+
+This includes validation of:
+- mission state transitions
+- target-state transitions
+- safety override behaviour
+- MAS input handling
+- output action selection
+
+This does not yet include full end to end validation with:
+- live YOLO inference
+- live swarm messaging
+- sensor fusion
+- A* execution
+- autopilot command execution
+- hardware in the loop flight testing
+
+## Current Status
+The BT module is implemented as a deterministic mission decision layer and is suitable for scenario-based validation.
+
+It is designed to integrate with:
+- MAS for swarm coordination flags
+- perception for target detection inputs
+- downstream control and planning modules through mission mode outputs
+
+## Summary
+This module is the high-level mission decision layer for the UAV autonomy stack.
+
+In simple terms, it decides:
+- when the drone should search
+- when the drone should verify and report a target
+- when it should track or search the last known location
+- when it should return to base
+- when safety overrides such as parent loss, comms loss, failsafe, or emergency landing should take control
+
+This makes it the core mission-logic layer for the autonomous system.
 
