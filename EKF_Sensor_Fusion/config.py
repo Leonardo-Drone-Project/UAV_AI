@@ -10,7 +10,6 @@ class EKFConfig:
     max_dt_s: float = 0.10
 
     # IMU handling
-    # Set this True if the accel input already has gravity removed.
     imu_accel_is_linear: bool = True
 
     # Process noise
