@@ -1,71 +1,79 @@
-from astar import GRID_ROWS, GRID_COLS, CELL_SIZE_M, plan_path, xy_m_to_rc
+from astar import plan_path
+
+GRID_SIZE = 100
 
 
-DOWNSAMPLE_STEP = 2
+def xy_to_rc(xy):
+    x, y = xy
+    return int(round(y)), int(round(x))
 
 
-def make_grid(rows: int, cols: int):
+def print_grid(grid, path_xy=None, start_xy=None, goal_xy=None):
+    path_cells = set()
+
+    if path_xy:
+        for xy in path_xy:
+            path_cells.add(xy_to_rc(xy))
+
+    start_rc = xy_to_rc(start_xy) if start_xy else None
+    goal_rc = xy_to_rc(goal_xy) if goal_xy else None
+
+    for r in range(len(grid)):
+        row = ""
+        for c in range(len(grid[0])):
+            cell = (r, c)
+
+            if cell == start_rc:
+                row += "S "
+            elif cell == goal_rc:
+                row += "G "
+            elif cell in path_cells:
+                row += "* "
+            elif grid[r][c] == 1:
+                row += "# "
+            else:
+                row += ". "
+        print(row)
+
+
+def build_demo_grid(rows, cols):
     grid = [[0 for _ in range(cols)] for _ in range(rows)]
 
-    wall_r = rows // 2
-    for c in range(cols):
-        grid[wall_r][c] = 1
+    # Vertical obstacle wall with gap
+    for r in range(8, 24):
+        grid[r][10] = 1
+    grid[16][10] = 0
+    grid[17][10] = 0
 
-    gap_c = cols // 2
-    for dc in range(-2, 3):
-        grid[wall_r][gap_c + dc] = 0
+    # Horizontal obstacle wall with gap
+    for c in range(0, 28):
+        grid[24][c] = 1
+    grid[24][15] = 0
+    grid[24][16] = 0
 
-    for r in range(15, 35):
-        grid[r][20] = 1
-
-    for c in range(60, 80):
-        grid[70][c] = 1
+    # Small lower obstacle
+    for c in range(25, 34):
+        grid[32][c] = 1
 
     return grid
 
 
-def metres_path_to_cells(path_xy_m):
-    return [xy_m_to_rc(x, y, CELL_SIZE_M) for (x, y) in path_xy_m]
-
-
-def print_grid_downsampled(grid, path_cells, start_cell, goal_cell, step=2):
-    path_set = set(path_cells) if path_cells else set()
-    rows, cols = len(grid), len(grid[0])
-
-    for r in range(0, rows, step):
-        line = []
-        for c in range(0, cols, step):
-            if (r, c) == start_cell:
-                line.append("S")
-            elif (r, c) == goal_cell:
-                line.append("G")
-            elif (r, c) in path_set:
-                line.append("*")
-            elif grid[r][c] == 1:
-                line.append("#")
-            else:
-                line.append(".")
-        print(" ".join(line))
-
-
 def main():
-    grid = make_grid(GRID_ROWS, GRID_COLS)
+    grid = build_demo_grid(GRID_SIZE, GRID_SIZE)
 
-    start_xy_m = (10.0, 5.0)
-    goal_xy_m = (80.0, 60.0)
+    start_xy = (10.0, 5.0)
+    goal_xy = (80.0, 60.0)
 
-    path_xy_m, meta = plan_path(
-        start_xy_m=start_xy_m,
-        goal_xy_m=goal_xy_m,
+    path_xy, meta = plan_path(
+        start_xy_m=start_xy,
+        goal_xy_m=goal_xy,
         occupancy_grid=grid,
-        cell_size_m=CELL_SIZE_M,
         diagonal=True,
-        simplify=True,
-        line_of_sight_smoothing=True,
-        waypoint_spacing_m=3.0,
-        inflation_radius_cells=1,
-        snap_start_goal_to_free=True,
-        snap_search_radius_cells=5,
+        simplify=False,
+        line_of_sight_smoothing=False,
+        waypoint_spacing_m=1.0,
+        inflation_radius_cells=0,
+        snap_start_goal_to_free=False,
         use_obstacle_proximity_cost=True,
         obstacle_proximity_distance_cells=2,
         obstacle_proximity_gain=0.75,
@@ -73,33 +81,14 @@ def main():
         return_metadata=True,
     )
 
-    if path_xy_m is None:
-        print("No path found.")
-        print(meta)
-        return
-
-    start_cell = xy_m_to_rc(start_xy_m[0], start_xy_m[1], CELL_SIZE_M)
-    goal_cell = xy_m_to_rc(goal_xy_m[0], goal_xy_m[1], CELL_SIZE_M)
-    path_cells = metres_path_to_cells(path_xy_m)
-
     print(f"A* planning time: {meta['planning_time_ms']:.2f} ms")
     print(f"Expanded nodes: {meta['expanded_nodes']}")
     print(f"Path length: {meta['path_length_m']:.2f} m")
     print(f"Path cost: {meta['path_cost']:.2f}")
-    print(f"Raw waypoint count: {meta['raw_waypoint_count']}")
-    print(f"Final waypoint count: {meta['final_waypoint_count']}")
-    print(f"Snapped start: {meta['snapped_start']}")
-    print(f"Snapped goal: {meta['snapped_goal']}")
-    print(f"Replan recommended: {meta['replan_recommended']}")
-    print(f"First 8 waypoints: {path_xy_m[:8]}\n")
+    print(f"Success: {meta['success']}")
+    print()
 
-    print_grid_downsampled(
-        grid=grid,
-        path_cells=path_cells,
-        start_cell=start_cell,
-        goal_cell=goal_cell,
-        step=DOWNSAMPLE_STEP,
-    )
+    print_grid(grid, path_xy=path_xy, start_xy=start_xy, goal_xy=goal_xy)
 
 
 if __name__ == "__main__":

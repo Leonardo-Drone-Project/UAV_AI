@@ -8,9 +8,6 @@ CostGrid = List[List[float]]    # additional traversal cost per cell
 Point = Tuple[int, int]         # (row, col)
 XYm = Tuple[float, float]       # (x_m, y_m)
 
-# ----------------------------
-# Locked design choice
-# ----------------------------
 GRID_ROWS = 100
 GRID_COLS = 100
 CELL_SIZE_M = 1.0
@@ -59,7 +56,7 @@ def validate_cost_grid(cost_grid: CostGrid, rows: int, cols: int) -> None:
 
 def inflate_obstacles(grid: Grid, inflation_radius_cells: int) -> Grid:
     """
-    Inflate each occupied cell by a circular safety margin.
+    Inflate each occupied cell by suitable circular safety margin.
     """
     validate_grid(grid)
 
@@ -89,7 +86,7 @@ def inflate_obstacles(grid: Grid, inflation_radius_cells: int) -> Grid:
 
 def obstacle_proximity_cost_grid(grid: Grid, max_distance_cells: int = 3, gain: float = 2.0) -> CostGrid:
     """
-    Build a simple weighted cost map.
+    Build simple weighted cost map.
     Cells near obstacles get an added traversal penalty.
     Occupied cells get 0 here because they are already blocked by the occupancy grid.
     """
@@ -165,7 +162,7 @@ def nearest_free_cell(grid: Grid, start: Point, max_radius: Optional[int] = None
 def neighbors(grid: Grid, node: Point, diagonal: bool) -> List[Tuple[Point, float]]:
     """
     Return valid neighbours and step costs.
-    Diagonal corner-cutting is blocked.
+    Diagonal cornercutting is blocked.
     """
     r, c = node
     out: List[Tuple[Point, float]] = []
@@ -362,7 +359,7 @@ def astar(
     turn_penalty: float = 0.0,
 ) -> Tuple[Optional[List[Point]], Dict[str, Any]]:
     """
-    A* on a binary occupancy grid with optional weighted costs and turn penalty.
+    A* on a binary occupancy grid with optional weighted costs an turn penalty.
     Returns:
       path, metadata
     """
